@@ -150,3 +150,18 @@ body {
 .case-study-overlay__body p:last-child {
   margin-bottom: 0;
 }
+
+.leva-panels {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 20;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.leva-panels > * {
+  pointer-events: auto;
+}

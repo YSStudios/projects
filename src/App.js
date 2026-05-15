@@ -4,7 +4,10 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { useCursor, MeshReflectorMaterial, Image, Text, Environment } from '@react-three/drei'
 import { useRoute, useLocation } from 'wouter'
 import { easing } from 'maath'
+import { Leva, LevaPanel, useCreateStore } from 'leva'
 import { MrNobodyTitle } from './MrNobodyTitle'
+import { TitleSpotlight } from './TitleSpotlight'
+import { LevaStoresContext } from './levaStores'
 
 const GOLDENRATIO = 1.61803398875
 const SCROLL_THRESHOLD = 900
@@ -23,7 +26,11 @@ function smoothstep(t) {
 }
 
 export const App = ({ images }) => {
+  const meshyStore = useCreateStore()
+  const titleTextStore = useCreateStore()
+  const spotlightStore = useCreateStore()
   const scrollProgress = useRef(0)
+  const [isEditor] = useRoute('/editor')
   const [, params] = useRoute('/item/:id')
 
   useEffect(() => {
@@ -48,7 +55,28 @@ export const App = ({ images }) => {
   }, [params?.id])
 
   return (
-    <div className="app">
+    <LevaStoresContext.Provider value={{ meshyStore, titleTextStore, spotlightStore }}>
+      <div className="app">
+      <Leva hidden />
+      {isEditor && (
+        <div className="leva-panels">
+          <LevaPanel
+            store={meshyStore}
+            collapsed
+            titleBar={{ title: 'Meshy material', drag: true, filter: false }}
+          />
+          <LevaPanel
+            store={titleTextStore}
+            collapsed
+            titleBar={{ title: 'Title text', drag: true, filter: false }}
+          />
+          <LevaPanel
+            store={spotlightStore}
+            collapsed
+            titleBar={{ title: 'Title spotlight', drag: true, filter: false }}
+          />
+        </div>
+      )}
       <div className="scroll-spacer" aria-hidden />
       <Canvas
         className="scene-canvas"
@@ -56,11 +84,14 @@ export const App = ({ images }) => {
         camera={{ fov: 70, position: CAMERA_INTRO.toArray() }}>
         <color attach="background" args={['#191920']} />
         <fog attach="fog" args={['#191920', 0, 40]} />
-        <MrNobodyTitle position={TITLE_POSITION} scale={7} />
+        <group position={TITLE_POSITION}>
+          <TitleSpotlight />
+          <MrNobodyTitle scale={7} />
+        </group>
         <group position={[0, -0.5, 0]}>
           <CameraRig scrollProgress={scrollProgress} images={images} />
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[50, 50]} />
+            <planeGeometry args={[70, 70]} />
             <MeshReflectorMaterial
               blur={[300, 100]}
               resolution={2048}
@@ -78,7 +109,8 @@ export const App = ({ images }) => {
         <Environment files="https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/potsdamer_platz_1k.hdr" />
       </Canvas>
       <CaseStudyOverlay panels={images} />
-    </div>
+      </div>
+    </LevaStoresContext.Provider>
   )
 }
 
