@@ -1,46 +1,117 @@
 import * as THREE from 'three'
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useCursor, MeshReflectorMaterial, Image, Text, Environment } from '@react-three/drei'
 import { useRoute, useLocation } from 'wouter'
 import { easing } from 'maath'
+import { MrNobodyTitle } from './MrNobodyTitle'
 
 const GOLDENRATIO = 1.61803398875
 const SCROLL_THRESHOLD = 900
+const CAMERA_INTRO = new THREE.Vector3(0, 2, 32)
+const CAMERA_GALLERY = new THREE.Vector3(0, 0, 5.5)
+const TITLE_POSITION = [0, 0, 25]
+const INTRO_TARGET = new THREE.Vector3()
 const LABEL_X = 0.55
 const LABEL_Y = GOLDENRATIO
 const DOT_GAP = 0.008
 const DOT_SPACING = 0.026
 const DOT_SIZE = 0.028
 
-export const App = ({ images }) => (
-  <>
-    <Canvas dpr={[1, 1.5]} camera={{ fov: 70, position: [0, 2, 15] }}>
-      <color attach="background" args={['#191920']} />
-      <fog attach="fog" args={['#191920', 0, 15]} />
-      <group position={[0, -0.5, 0]}>
-        <Frames images={images} />
-        <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[50, 50]} />
-          <MeshReflectorMaterial
-            blur={[300, 100]}
-            resolution={2048}
-            mixBlur={1}
-            mixStrength={40}
-            roughness={1}
-            depthScale={1.2}
-            minDepthThreshold={0.4}
-            maxDepthThreshold={1.4}
-            color="#050505"
-            metalness={0.5}
-          />
-        </mesh>
-      </group>
-      <Environment files="https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/potsdamer_platz_1k.hdr" />
-    </Canvas>
-    <CaseStudyOverlay panels={images} />
-  </>
-)
+function smoothstep(t) {
+  return t * t * (3 - 2 * t)
+}
+
+export const App = ({ images }) => {
+  const scrollProgress = useRef(0)
+  const [, params] = useRoute('/item/:id')
+
+  useEffect(() => {
+    const onScroll = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight
+      scrollProgress.current = max <= 0 ? 1 : Math.min(1, window.scrollY / max)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    const onWheel = (e) => {
+      if (params?.id || !e.target.closest?.('canvas')) return
+      if (e.target.closest?.('.case-study-overlay')) return
+      e.preventDefault()
+      window.scrollBy({ top: e.deltaY })
+    }
+    window.addEventListener('wheel', onWheel, { passive: false })
+    return () => window.removeEventListener('wheel', onWheel)
+  }, [params?.id])
+
+  return (
+    <div className="app">
+      <div className="scroll-spacer" aria-hidden />
+      <Canvas
+        className="scene-canvas"
+        dpr={[1, 1.5]}
+        camera={{ fov: 70, position: CAMERA_INTRO.toArray() }}>
+        <color attach="background" args={['#191920']} />
+        <fog attach="fog" args={['#191920', 0, 40]} />
+        <MrNobodyTitle position={TITLE_POSITION} scale={7} />
+        <group position={[0, -0.5, 0]}>
+          <CameraRig scrollProgress={scrollProgress} images={images} />
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[50, 50]} />
+            <MeshReflectorMaterial
+              blur={[300, 100]}
+              resolution={2048}
+              mixBlur={1}
+              mixStrength={40}
+              roughness={1}
+              depthScale={1.2}
+              minDepthThreshold={0.4}
+              maxDepthThreshold={1.4}
+              color="#050505"
+              metalness={0.5}
+            />
+          </mesh>
+        </group>
+        <Environment files="https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/potsdamer_platz_1k.hdr" />
+      </Canvas>
+      <CaseStudyOverlay panels={images} />
+    </div>
+  )
+}
+
+function CameraRig({ scrollProgress, images, q = new THREE.Quaternion(), p = new THREE.Vector3() }) {
+  const framesRef = useRef()
+  const clicked = useRef()
+  const [, params] = useRoute('/item/:id')
+
+  useEffect(() => {
+    clicked.current = framesRef.current?.getObjectByName(params?.id)
+    if (clicked.current) {
+      clicked.current.parent.updateWorldMatrix(true, true)
+      clicked.current.parent.localToWorld(p.set(0, GOLDENRATIO / 2, 1.25))
+      clicked.current.parent.getWorldQuaternion(q)
+    }
+  }, [params?.id])
+
+  useFrame((state, dt) => {
+    if (params?.id && clicked.current) {
+      easing.damp3(state.camera.position, p, 0.4, dt)
+      easing.dampQ(state.camera.quaternion, q, 0.4, dt)
+      return
+    }
+
+    const t = smoothstep(scrollProgress.current)
+    INTRO_TARGET.copy(CAMERA_INTRO).lerp(CAMERA_GALLERY, t)
+    easing.damp3(state.camera.position, INTRO_TARGET, 0.35, dt)
+    q.identity()
+    easing.dampQ(state.camera.quaternion, q, 0.35, dt)
+  })
+
+  return <Frames ref={framesRef} images={images} />
+}
 
 function CaseStudyOverlay({ panels }) {
   const [, params] = useRoute('/item/:id')
@@ -78,26 +149,13 @@ function CaseStudyOverlay({ panels }) {
   )
 }
 
-function Frames({ images, q = new THREE.Quaternion(), p = new THREE.Vector3() }) {
-  const ref = useRef()
+const Frames = forwardRef(function Frames({ images }, ref) {
   const clicked = useRef()
   const [, params] = useRoute('/item/:id')
   const [, setLocation] = useLocation()
   useEffect(() => {
-    clicked.current = ref.current.getObjectByName(params?.id)
-    if (clicked.current) {
-      clicked.current.parent.updateWorldMatrix(true, true)
-      clicked.current.parent.localToWorld(p.set(0, GOLDENRATIO / 2, 1.25))
-      clicked.current.parent.getWorldQuaternion(q)
-    } else {
-      p.set(0, 0, 5.5)
-      q.identity()
-    }
-  }, [params?.id])
-  useFrame((state, dt) => {
-    easing.damp3(state.camera.position, p, 0.4, dt)
-    easing.dampQ(state.camera.quaternion, q, 0.4, dt)
-  })
+    clicked.current = ref?.current?.getObjectByName(params?.id)
+  }, [params?.id, ref])
   return (
     <group
       ref={ref}
@@ -108,7 +166,7 @@ function Frames({ images, q = new THREE.Quaternion(), p = new THREE.Vector3() })
       ))}
     </group>
   )
-}
+})
 
 function Frame({ id, title, urls, ...props }) {
   const image = useRef()
