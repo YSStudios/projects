@@ -4,35 +4,79 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { useCursor, MeshReflectorMaterial, Image, Text, Environment } from '@react-three/drei'
 import { useRoute, useLocation } from 'wouter'
 import { easing } from 'maath'
-import getUuid from 'uuid-by-string'
 
 const GOLDENRATIO = 1.61803398875
+const SCROLL_THRESHOLD = 900
+const LABEL_X = 0.55
+const LABEL_Y = GOLDENRATIO
+const DOT_GAP = 0.008
+const DOT_SPACING = 0.026
+const DOT_SIZE = 0.028
 
 export const App = ({ images }) => (
-  <Canvas dpr={[1, 1.5]} camera={{ fov: 70, position: [0, 2, 15] }}>
-    <color attach="background" args={['#191920']} />
-    <fog attach="fog" args={['#191920', 0, 15]} />
-    <group position={[0, -0.5, 0]}>
-      <Frames images={images} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[50, 50]} />
-        <MeshReflectorMaterial
-          blur={[300, 100]}
-          resolution={2048}
-          mixBlur={1}
-          mixStrength={40}
-          roughness={1}
-          depthScale={1.2}
-          minDepthThreshold={0.4}
-          maxDepthThreshold={1.4}
-          color="#050505"
-          metalness={0.5}
-        />
-      </mesh>
-    </group>
-    <Environment files="https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/potsdamer_platz_1k.hdr" />
-  </Canvas>
+  <>
+    <Canvas dpr={[1, 1.5]} camera={{ fov: 70, position: [0, 2, 15] }}>
+      <color attach="background" args={['#191920']} />
+      <fog attach="fog" args={['#191920', 0, 15]} />
+      <group position={[0, -0.5, 0]}>
+        <Frames images={images} />
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[50, 50]} />
+          <MeshReflectorMaterial
+            blur={[300, 100]}
+            resolution={2048}
+            mixBlur={1}
+            mixStrength={40}
+            roughness={1}
+            depthScale={1.2}
+            minDepthThreshold={0.4}
+            maxDepthThreshold={1.4}
+            color="#050505"
+            metalness={0.5}
+          />
+        </mesh>
+      </group>
+      <Environment files="https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/potsdamer_platz_1k.hdr" />
+    </Canvas>
+    <CaseStudyOverlay panels={images} />
+  </>
 )
+
+function CaseStudyOverlay({ panels }) {
+  const [, params] = useRoute('/item/:id')
+  const [, setLocation] = useLocation()
+  const panel = panels.find((p) => p.id === params?.id)
+  const isOpen = Boolean(panel)
+  const { caseStudy } = panel || {}
+
+  return (
+    <aside className={`case-study-overlay${isOpen ? ' is-open' : ''}`} aria-hidden={!isOpen}>
+      {panel && (
+        <div className="case-study-overlay__panel">
+          <button type="button" className="case-study-overlay__close" onClick={() => setLocation('/')} aria-label="Close case study">
+            ×
+          </button>
+          <p className="case-study-overlay__eyebrow">Case study</p>
+          <h2 className="case-study-overlay__title">{caseStudy.headline}</h2>
+          <p className="case-study-overlay__meta">
+            {caseStudy.year} · {caseStudy.role}
+          </p>
+          <p className="case-study-overlay__summary">{caseStudy.summary}</p>
+          <ul className="case-study-overlay__tags">
+            {caseStudy.tags.map((tag) => (
+              <li key={tag}>{tag}</li>
+            ))}
+          </ul>
+          <div className="case-study-overlay__body">
+            {caseStudy.body.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </div>
+        </div>
+      )}
+    </aside>
+  )
+}
 
 function Frames({ images, q = new THREE.Quaternion(), p = new THREE.Vector3() }) {
   const ref = useRef()
@@ -59,29 +103,71 @@ function Frames({ images, q = new THREE.Quaternion(), p = new THREE.Vector3() })
       ref={ref}
       onClick={(e) => (e.stopPropagation(), setLocation(clicked.current === e.object ? '/' : '/item/' + e.object.name))}
       onPointerMissed={() => setLocation('/')}>
-      {images.map((props) => <Frame key={props.url} {...props} /> /* prettier-ignore */)}
+      {images.map((props) => (
+        <Frame key={props.id} {...props} />
+      ))}
     </group>
   )
 }
 
-function Frame({ url, title, ...props }) {
+function Frame({ id, title, urls, ...props }) {
   const image = useRef()
   const frame = useRef()
+  const scrollAccum = useRef(0)
   const [, params] = useRoute('/item/:id')
   const [hovered, hover] = useState(false)
+  const [index, setIndex] = useState(0)
   const [rnd] = useState(() => Math.random())
-  const name = getUuid(url)
-  const isActive = params?.id === name
+  const isActive = params?.id === id
+  const hasMultiple = urls.length > 1
+  const displayIndex = isActive ? index : 0
   useCursor(hovered)
+  useEffect(() => {
+    if (!isActive) {
+      setIndex(0)
+      scrollAccum.current = 0
+    }
+  }, [isActive])
+  useEffect(() => {
+    if (!isActive || !hasMultiple) return
+    const step = (direction) => {
+      setIndex((current) => Math.max(0, Math.min(urls.length - 1, current + direction)))
+    }
+    const onWheel = (e) => {
+      if (e.target.closest?.('.case-study-overlay')) return
+      e.preventDefault()
+      scrollAccum.current += e.deltaY
+      if (Math.abs(scrollAccum.current) < SCROLL_THRESHOLD) return
+      step(scrollAccum.current > 0 ? 1 : -1)
+      scrollAccum.current = 0
+    }
+    const onKeyDown = (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault()
+        step(1)
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault()
+        step(-1)
+      }
+    }
+    window.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isActive, hasMultiple, urls.length])
   useFrame((state, dt) => {
-    image.current.material.zoom = 2 + Math.sin(rnd * 10000 + state.clock.elapsedTime / 3) / 2
+    if (image.current?.material) {
+      image.current.material.zoom = 2 + Math.sin(rnd * 10000 + state.clock.elapsedTime / 3) / 2
+    }
     easing.damp3(image.current.scale, [0.85 * (!isActive && hovered ? 0.85 : 1), 0.9 * (!isActive && hovered ? 0.905 : 1), 1], 0.1, dt)
     easing.dampC(frame.current.material.color, hovered ? 'orange' : 'white', 0.1, dt)
   })
   return (
     <group {...props}>
       <mesh
-        name={name}
+        name={id}
         onPointerOver={(e) => (e.stopPropagation(), hover(true))}
         onPointerOut={() => hover(false)}
         scale={[1, GOLDENRATIO, 0.05]}
@@ -92,11 +178,51 @@ function Frame({ url, title, ...props }) {
           <boxGeometry />
           <meshBasicMaterial toneMapped={false} fog={false} />
         </mesh>
-        <Image raycast={() => null} ref={image} position={[0, 0, 0.7]} url={url} />
+        <Image ref={image} raycast={() => null} position={[0, 0, 0.7]} url={urls[displayIndex]} key={urls[displayIndex]} />
       </mesh>
-      <Text maxWidth={0.1} anchorX="left" anchorY="top" position={[0.55, GOLDENRATIO, 0]} fontSize={0.025}>
-        {title || name.split('-').join(' ')}
-      </Text>
+      <FrameLabel title={title} count={urls.length} index={displayIndex} />
     </group>
+  )
+}
+
+function FrameLabel({ title, count, index }) {
+  const [dotsY, setDotsY] = useState(LABEL_Y - 0.034)
+  const onTitleSync = (troika) => {
+    const bounds = troika.textRenderInfo?.blockBounds
+    if (!bounds) return
+    const minY = bounds[1]
+    setDotsY(LABEL_Y + minY - DOT_GAP)
+  }
+  return (
+    <>
+      <Text
+        maxWidth={0.1}
+        anchorX="left"
+        anchorY="top"
+        position={[LABEL_X, LABEL_Y, 0]}
+        fontSize={0.025}
+        onSync={onTitleSync}>
+        {title}
+      </Text>
+      <DotIndicator count={count} index={index} y={dotsY} />
+    </>
+  )
+}
+
+function DotIndicator({ count, index, y }) {
+  return (
+    <>
+      {Array.from({ length: count }, (_, i) => (
+        <Text
+          key={i}
+          anchorX="left"
+          anchorY="top"
+          position={[LABEL_X + i * DOT_SPACING, y, 0]}
+          fontSize={DOT_SIZE}
+          color={i === index ? '#ffffff' : '#666666'}>
+          •
+        </Text>
+      ))}
+    </>
   )
 }
