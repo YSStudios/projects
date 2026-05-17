@@ -45,7 +45,7 @@ const panel = (id, title, primary, position, rotation, study) => ({
 
 const images = [
   panel(
-    'mannequin',
+    '1',
     'Mannequin Wires',
     '01-mannequin-wires.png',
     [0, 0, 1.5],
@@ -53,7 +53,7 @@ const images = [
     caseStudy('Mannequin Wires', 'A wearable electronics rig mapped directly onto a dress form, treating the body as both canvas and circuit.')
   ),
   panel(
-    'soundwave-dress',
+    '5',
     'Soundwave Dress',
     '02-soundwave-dress.png',
     [-0.8, 0, -0.6],
@@ -61,7 +61,7 @@ const images = [
     caseStudy('Soundwave Dress', 'Digital print and negative-space construction shaped into a column dress with halter structure and side cutouts.')
   ),
   panel(
-    'mesh-top',
+    '6',
     'Mesh Top',
     '03-mesh-top.png',
     [0.8, 0, -0.6],
@@ -69,7 +69,7 @@ const images = [
     caseStudy('Mesh Top', 'Sheer mesh with engineered stripe motif — flat patterning translated into a sculptural mock-neck silhouette.')
   ),
   panel(
-    'denim-patchwork',
+    '4',
     'Denim Patchwork',
     '04-denim-patchwork.png',
     [-1.75, 0, 0.25],
@@ -77,7 +77,7 @@ const images = [
     caseStudy('Denim Patchwork', 'Deconstructed denim fragments reassembled into an asymmetric wrap with raw edges and mixed washes.')
   ),
   panel(
-    'deconstructed-jeans',
+    '3',
     'Deconstructed Jeans',
     '05-deconstructed-jeans.png',
     [-2.15, 0, 1.5],
@@ -85,7 +85,7 @@ const images = [
     caseStudy('Deconstructed Jeans', 'Segmented denim separated at the thigh and rejoined with hardware chains and medallion connectors.')
   ),
   panel(
-    'wiring-harness',
+    '2',
     'Wiring Harness',
     '06-wiring-harness.png',
     [-2, 0, 2.75],
@@ -96,7 +96,7 @@ const images = [
     ])
   ),
   panel(
-    'patchwork-vest',
+    '7',
     'Patchwork Vest',
     '07-patchwork-vest.png',
     [1.75, 0, 0.25],
@@ -104,7 +104,7 @@ const images = [
     caseStudy('Patchwork Vest', 'Fur-collared vest built from reclaimed denim blocks with intentional distressing and tonal contrast.')
   ),
   panel(
-    'printed-jacket',
+    '8',
     'Printed Jacket',
     '08-printed-jacket.png',
     [2.15, 0, 1.5],
@@ -112,7 +112,7 @@ const images = [
     caseStudy('Printed Jacket', 'All-over celestial print with gradient hem, finished with heavy-duty spring clips instead of conventional closure.')
   ),
   panel(
-    'jacket-detail',
+    '9',
     'Jacket Detail',
     '09-printed-jacket-detail.png',
     [2, 0, 2.75],

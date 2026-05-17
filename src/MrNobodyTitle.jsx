@@ -230,7 +230,7 @@ export function MrNobodyTitle(props) {
 
   return (
     <group {...props} dispose={null}>
-      <mesh geometry={nodes.Meshy_Mesh_0.geometry} material={meshMaterial} position={[0, 0.2, 0]} scale={0.75} />
+      <mesh geometry={nodes.Meshy_Mesh_0.geometry} material={meshMaterial} position={[0, 0.3, -2]} scale={2} />
       <mesh
         geometry={nodes.Text.geometry}
         material={textMaterial}
