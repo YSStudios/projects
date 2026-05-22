@@ -122,6 +122,8 @@ export const App = ({ images }) => {
   }, [])
 
   const viewportAspect = viewportSize.h > 0 ? viewportSize.w / viewportSize.h : INTRO_ASPECT_WIDE
+  const isNarrowScreen = viewportSize.w <= 900
+  const isCaseStudyOpen = Boolean(params?.id)
   const introBlendByAspect = THREE.MathUtils.inverseLerp(INTRO_ASPECT_WIDE, INTRO_ASPECT_NARROW, viewportAspect)
   const introBlendByWidth = THREE.MathUtils.inverseLerp(INTRO_WIDTH_WIDE, INTRO_WIDTH_NARROW, viewportSize.w)
   const introBlend = THREE.MathUtils.clamp(Math.max(introBlendByAspect, introBlendByWidth), 0, 1)
@@ -179,7 +181,7 @@ export const App = ({ images }) => {
 
   return (
     <LevaStoresContext.Provider value={{ meshyStore, titleTextStore, spotlightStore }}>
-      <div className="app">
+      <div className={`app${params?.id ? ' is-case-study-open' : ''}`}>
       <nav ref={galleryNavRef} className={`gallery-nav${isAbout || isContact ? ' is-light' : ''}`}>
         <div className="gallery-nav__spacer" aria-hidden />
         <button type="button" className="gallery-nav__brand gallery-nav__action" onClick={() => setLocation('/')}>
@@ -223,6 +225,7 @@ export const App = ({ images }) => {
       <div className="scroll-spacer" aria-hidden />
       <Canvas
         className="scene-canvas"
+        style={{ height: isNarrowScreen && isCaseStudyOpen ? '50dvh' : '100dvh' }}
         dpr={[1, 1.5]}
         gl={{ stencil: true }}
         camera={{ fov: 70, position: introCamera.toArray() }}>
@@ -241,7 +244,7 @@ export const App = ({ images }) => {
             panelCameraOffset={panelCameraOffset}
           />
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[70, 70]} />
+            <planeGeometry args={[140, 140]} />
             <MeshReflectorMaterial
               blur={[300, 100]}
               resolution={2048}

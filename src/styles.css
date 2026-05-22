@@ -464,29 +464,68 @@ body {
 }
 
 @media (max-width: 900px) {
+  .scene-canvas {
+    height: 100dvh;
+  }
+
+  .app.is-case-study-open .scene-canvas {
+    height: 50dvh;
+  }
+
   .case-study-overlay {
+    top: 100dvh;
+    bottom: auto;
+    left: 0;
     right: 0;
+    height: 50dvh;
     width: 100vw;
     max-width: 100vw;
+    transform: translateY(108%);
+    pointer-events: none;
+  }
+
+  .app.is-case-study-open .case-study-overlay {
+    top: 50dvh;
+  }
+
+  .case-study-overlay.is-open {
+    transform: translateY(0);
+    pointer-events: none;
   }
 
   .case-study-overlay__panel {
-    padding: calc(env(safe-area-inset-top, 0px) + 3.2rem) 1.15rem calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
+    position: relative;
+    height: 100%;
+    padding: 2.35rem 1.15rem calc(env(safe-area-inset-bottom, 0px) + 1rem);
     background: linear-gradient(180deg, rgba(25, 25, 32, 0.98) 0%, #191920 14%);
-    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0;
     box-shadow: none;
+    pointer-events: auto;
+  }
+
+  .case-study-overlay__panel::before {
+    content: '';
+    position: absolute;
+    top: 0.75rem;
+    left: 50%;
+    width: 2.4rem;
+    height: 0.22rem;
+    border-radius: 999px;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.28);
   }
 
   .case-study-overlay__close {
-    top: calc(env(safe-area-inset-top, 0px) + 0.9rem);
+    top: 0.68rem;
     right: 0.9rem;
-    width: 2.5rem;
-    height: 2.5rem;
-    font-size: 1.55rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: 1.35rem;
   }
 
   .case-study-overlay__title {
-    margin-right: 3rem;
+    margin-right: 2.8rem;
     font-size: clamp(1.6rem, 7vw, 2.15rem);
     line-height: 1.08;
   }
