@@ -272,12 +272,32 @@ html {
 }
 
 @media (max-width: 900px) {
+  .gallery-nav {
+    padding: 1.15rem 1rem 0.9rem;
+  }
+
+  .gallery-nav__action,
+  .gallery-nav__link {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.72rem 0.58rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .gallery-nav__links {
+    gap: 0.55rem;
+  }
+
   .about-page {
     padding: 0;
+    min-height: 100dvh;
   }
 
   .about-page__sheet {
-    padding: 5.8rem 1rem 1.1rem;
+    min-height: 100dvh;
+    padding: 5.8rem 1rem 3rem;
   }
 
   .about-page::before {
@@ -286,6 +306,7 @@ html {
 
   .about-page__content {
     width: 100%;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 
   .about-page__sheet p {
@@ -298,6 +319,18 @@ html {
   .contact-page__link {
     font-size: clamp(1rem, 5vw, 1.4rem);
     letter-spacing: 0.08em;
+  }
+}
+
+@media (max-width: 480px) {
+  .gallery-nav__brand {
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+  }
+
+  .gallery-nav__link {
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
   }
 }
 
@@ -428,6 +461,86 @@ body {
 
 .case-study-overlay__body p:last-child {
   margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+  .case-study-overlay {
+    right: 0;
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  .case-study-overlay__panel {
+    padding: calc(env(safe-area-inset-top, 0px) + 3.2rem) 1.15rem calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
+    background: linear-gradient(180deg, rgba(25, 25, 32, 0.98) 0%, #191920 14%);
+    border-left: none;
+    box-shadow: none;
+  }
+
+  .case-study-overlay__close {
+    top: calc(env(safe-area-inset-top, 0px) + 0.9rem);
+    right: 0.9rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1.55rem;
+  }
+
+  .case-study-overlay__title {
+    margin-right: 3rem;
+    font-size: clamp(1.6rem, 7vw, 2.15rem);
+    line-height: 1.08;
+  }
+
+  .case-study-overlay__meta {
+    margin-bottom: 1rem;
+    font-size: 0.78rem;
+  }
+
+  .case-study-overlay__summary {
+    margin-bottom: 1.2rem;
+    font-size: 0.95rem;
+    line-height: 1.52;
+  }
+
+  .case-study-overlay__tags {
+    gap: 0.4rem;
+    margin-bottom: 1.35rem;
+  }
+
+  .case-study-overlay__tags li {
+    padding: 0.33rem 0.58rem;
+    font-size: 0.66rem;
+  }
+
+  .case-study-overlay__body p {
+    margin-bottom: 0.9rem;
+    font-size: 0.9rem;
+    line-height: 1.58;
+  }
+}
+
+@media (max-width: 520px) {
+  .gallery-nav {
+    grid-template-columns: auto 1fr auto;
+    column-gap: 0.55rem;
+    padding: calc(env(safe-area-inset-top, 0px) + 0.68rem) 0.72rem 0.72rem;
+  }
+
+  .gallery-nav__brand {
+    justify-self: start;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+  }
+
+  .gallery-nav__links {
+    justify-self: end;
+    gap: 0.34rem;
+  }
+
+  .gallery-nav__link {
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+  }
 }
 
 .leva-panels {

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useCursor, MeshReflectorMaterial, Image, Text, Environment, Mask, Html } from '@react-three/drei'
 import { useRoute, useLocation } from 'wouter'
@@ -50,12 +50,22 @@ const GALLERY_NAV_FADE_START = 0.5
 const GALLERY_NAV_FADE_RANGE = 0.15
 const CAMERA_INTRO = new THREE.Vector3(0, 2, 32)
 const CAMERA_GALLERY = new THREE.Vector3(0, 0, 5.5)
+const CAMERA_INTRO_NARROW = new THREE.Vector3(0, 1.8, 44)
+const CAMERA_GALLERY_NARROW = new THREE.Vector3(0, 0.15, 6.7)
 /** maath damp smooth time — lower is snappier, higher is slower. */
 const CAMERA_PANEL_DAMP = 0.1
 const CAMERA_INTRO_DAMP = 0.15
 /** Local-space offset from a focused panel: [x, y, z]. Z controls stand-off distance. */
 const CAMERA_PANEL_OFFSET = [0, GOLDENRATIO / 2, 1.25]
+const CAMERA_PANEL_OFFSET_NARROW = [0, GOLDENRATIO / 2 + 0.08, 1.7]
 const TITLE_POSITION = [0, 0, 25]
+const TITLE_POSITION_NARROW = [0.2, 0, 25]
+const TITLE_SCALE_DESKTOP = 7
+const TITLE_SCALE_NARROW = 3.9
+const INTRO_ASPECT_WIDE = 1.2
+const INTRO_ASPECT_NARROW = 0.45
+const INTRO_WIDTH_WIDE = 1200
+const INTRO_WIDTH_NARROW = 360
 const INTRO_TARGET = new THREE.Vector3()
 const LABEL_X = 0.55
 const LABEL_Y = GOLDENRATIO
@@ -83,6 +93,10 @@ function smoothstep(t) {
   return t * t * (3 - 2 * t)
 }
 
+function lerpArray(a, b, t) {
+  return a.map((v, i) => THREE.MathUtils.lerp(v, b[i], t))
+}
+
 export const App = ({ images }) => {
   const meshyStore = useCreateStore()
   const titleTextStore = useCreateStore()
@@ -96,6 +110,39 @@ export const App = ({ images }) => {
   const [isContact] = useRoute('/contact')
   const [, params] = useRoute('/item/:id')
   const [, setLocation] = useLocation()
+  const [viewportSize, setViewportSize] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }))
+
+  useEffect(() => {
+    const onResize = () => {
+      setViewportSize({ w: window.innerWidth, h: window.innerHeight })
+    }
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const viewportAspect = viewportSize.h > 0 ? viewportSize.w / viewportSize.h : INTRO_ASPECT_WIDE
+  const introBlendByAspect = THREE.MathUtils.inverseLerp(INTRO_ASPECT_WIDE, INTRO_ASPECT_NARROW, viewportAspect)
+  const introBlendByWidth = THREE.MathUtils.inverseLerp(INTRO_WIDTH_WIDE, INTRO_WIDTH_NARROW, viewportSize.w)
+  const introBlend = THREE.MathUtils.clamp(Math.max(introBlendByAspect, introBlendByWidth), 0, 1)
+
+  const introCamera = useMemo(
+    () => CAMERA_INTRO.clone().lerp(CAMERA_INTRO_NARROW, introBlend),
+    [introBlend]
+  )
+  const galleryCamera = useMemo(
+    () => CAMERA_GALLERY.clone().lerp(CAMERA_GALLERY_NARROW, introBlend),
+    [introBlend]
+  )
+  const panelCameraOffset = useMemo(
+    () => lerpArray(CAMERA_PANEL_OFFSET, CAMERA_PANEL_OFFSET_NARROW, introBlend),
+    [introBlend]
+  )
+  const titleScale = THREE.MathUtils.lerp(TITLE_SCALE_DESKTOP, TITLE_SCALE_NARROW, introBlend)
+  const titlePosition = useMemo(
+    () => lerpArray(TITLE_POSITION, TITLE_POSITION_NARROW, introBlend),
+    [introBlend]
+  )
 
   useEffect(() => {
     const onScroll = () => {
@@ -178,15 +225,21 @@ export const App = ({ images }) => {
         className="scene-canvas"
         dpr={[1, 1.5]}
         gl={{ stencil: true }}
-        camera={{ fov: 70, position: CAMERA_INTRO.toArray() }}>
+        camera={{ fov: 70, position: introCamera.toArray() }}>
         <color attach="background" args={['#191920']} />
         <fog attach="fog" args={['#191920', 0, 40]} />
-        <group position={TITLE_POSITION}>
+        <group position={titlePosition}>
           <TitleSpotlight />
-          <MrNobodyTitle scale={7} />
+          <MrNobodyTitle scale={titleScale} />
         </group>
         <group position={[0, -0.5, 0]}>
-          <CameraRig scrollProgress={scrollProgress} images={images} />
+          <CameraRig
+            scrollProgress={scrollProgress}
+            images={images}
+            introCamera={introCamera}
+            galleryCamera={galleryCamera}
+            panelCameraOffset={panelCameraOffset}
+          />
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[70, 70]} />
             <MeshReflectorMaterial
@@ -213,7 +266,7 @@ export const App = ({ images }) => {
   )
 }
 
-function CameraRig({ scrollProgress, images, q = new THREE.Quaternion(), p = new THREE.Vector3() }) {
+function CameraRig({ scrollProgress, images, introCamera, galleryCamera, panelCameraOffset, q = new THREE.Quaternion(), p = new THREE.Vector3() }) {
   const framesRef = useRef()
   const clicked = useRef()
   const [, params] = useRoute('/item/:id')
@@ -222,10 +275,10 @@ function CameraRig({ scrollProgress, images, q = new THREE.Quaternion(), p = new
     clicked.current = framesRef.current?.getObjectByName(params?.id)
     if (clicked.current) {
       clicked.current.parent.updateWorldMatrix(true, true)
-      clicked.current.parent.localToWorld(p.set(...CAMERA_PANEL_OFFSET))
+      clicked.current.parent.localToWorld(p.set(...panelCameraOffset))
       clicked.current.parent.getWorldQuaternion(q)
     }
-  }, [params?.id])
+  }, [params?.id, panelCameraOffset])
 
   useFrame((state, dt) => {
     if (params?.id && clicked.current) {
@@ -235,7 +288,7 @@ function CameraRig({ scrollProgress, images, q = new THREE.Quaternion(), p = new
     }
 
     const t = smoothstep(scrollProgress.current)
-    INTRO_TARGET.copy(CAMERA_INTRO).lerp(CAMERA_GALLERY, t)
+    INTRO_TARGET.copy(introCamera).lerp(galleryCamera, t)
     easing.damp3(state.camera.position, INTRO_TARGET, CAMERA_INTRO_DAMP, dt)
     q.identity()
     easing.dampQ(state.camera.quaternion, q, CAMERA_INTRO_DAMP, dt)
