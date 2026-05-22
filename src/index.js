@@ -114,7 +114,7 @@ const images = [
   panel(
     '9',
     'Jacket Detail',
-    '09-printed-jacket-detail.png',
+    '08-printed-jacket.png',
     [2, 0, 2.75],
     [0, -Math.PI / 2.5, 0],
     caseStudy('Jacket Detail', 'Close study of clip hardware, print registration, and cuff color falloff on the finished garment.')

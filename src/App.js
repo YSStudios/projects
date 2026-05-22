@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useCursor, MeshReflectorMaterial, Image, Text, Environment, Mask, useMask, Html } from '@react-three/drei'
+import { useCursor, MeshReflectorMaterial, Image, Text, Environment, Mask, Html } from '@react-three/drei'
 import { useRoute, useLocation } from 'wouter'
 import { easing } from 'maath'
 import { Leva, LevaPanel, useCreateStore } from 'leva'
@@ -13,7 +13,14 @@ import { PANEL_ORDER } from './panelOrder'
 const GOLDENRATIO = 1.61803398875
 const FRAME_INNER_W = 0.9
 const FRAME_INNER_H = GOLDENRATIO * 0.93
-const IMAGE_VIEW_SCALE = [0.85, 0.9, 1]
+const FRAME_VIEW_W = 0.85
+const FRAME_VIEW_RATIO = FRAME_VIEW_W / FRAME_INNER_W
+const IMAGE_VIEW_SCALE = [FRAME_VIEW_W, FRAME_INNER_H * FRAME_VIEW_RATIO, 1]
+/** Keep physical frame depth slim so adjacent angled panels do not intersect/clip each other. */
+const FRAME_DEPTH_SCALE = 0.02
+/** Set true to re-enable slow zoom on panel cover textures. */
+const KEN_BURNS_ENABLED = false
+
 /**
  * Html is rasterized at its css size then magnified in 3D. On-screen size ≈ px × distanceFactor,
  * so for sharper images: multiply px only, divide distanceFactor by the same amount.
@@ -23,22 +30,31 @@ const HTML_RESOLUTION_SCALE = 6
 const HTML_DISTANCE_FACTOR = HTML_BASE_DISTANCE_FACTOR / HTML_RESOLUTION_SCALE
 const htmlPx = (units) => units * (400 / HTML_BASE_DISTANCE_FACTOR) * HTML_RESOLUTION_SCALE
 /**
- * Html px = mask plane geometry; height ÷ φ cancels the frame mesh Y scale so the
- * box aligns with the opening on screen. Inset padding is applied inside .wrapper.
+ * Html px = mask plane geometry dimensions. Inset padding is applied inside .wrapper.
  */
 const FRAME_HTML_W = htmlPx(FRAME_INNER_W)
-const FRAME_HTML_H = htmlPx(FRAME_INNER_H / GOLDENRATIO)
-const FRAME_PAD = `${((1 - IMAGE_VIEW_SCALE[0] / FRAME_INNER_W) / 2) * 100}%`
+const FRAME_HTML_H = htmlPx(FRAME_INNER_H)
+const FRAME_PAD = `${((1 - FRAME_VIEW_RATIO) / 2) * 100}%`
+const GALLERY_SLIDE_GAP = htmlPx(0.14)
 const SCROLL_INDEX_SCALE = 1 / 520
 const SCROLL_DELTA_MAX = 0.12
 const SNAP_DAMP = 14
 const WHEEL_IDLE_MS = 140
+const COVER_HOVER_SCALE = 0.95
+const COVER_HOVER_SPEED = 22
 /** Extra scroll at gallery ends (slide units) before advancing to the next panel. */
 const PANEL_EDGE_OVERFLOW = 1.05
 const EDGE_PULL_GAIN = 0.45
 const PANEL_NAV_COOLDOWN_MS = 700
+const GALLERY_NAV_FADE_START = 0.5
+const GALLERY_NAV_FADE_RANGE = 0.15
 const CAMERA_INTRO = new THREE.Vector3(0, 2, 32)
 const CAMERA_GALLERY = new THREE.Vector3(0, 0, 5.5)
+/** maath damp smooth time — lower is snappier, higher is slower. */
+const CAMERA_PANEL_DAMP = 0.1
+const CAMERA_INTRO_DAMP = 0.15
+/** Local-space offset from a focused panel: [x, y, z]. Z controls stand-off distance. */
+const CAMERA_PANEL_OFFSET = [0, GOLDENRATIO / 2, 1.25]
 const TITLE_POSITION = [0, 0, 25]
 const INTRO_TARGET = new THREE.Vector3()
 const LABEL_X = 0.55
@@ -46,6 +62,9 @@ const LABEL_Y = GOLDENRATIO
 const DOT_GAP = 0.008
 const DOT_SPACING = 0.026
 const DOT_SIZE = 0.028
+const EDGE_HINT_W = 0.068
+const EDGE_HINT_H = 0.0025
+const EDGE_HINT_GAP = 0.01
 
 function adjacentPanelId(id, delta) {
   const i = PANEL_ORDER.indexOf(id)
@@ -69,18 +88,36 @@ export const App = ({ images }) => {
   const titleTextStore = useCreateStore()
   const spotlightStore = useCreateStore()
   const scrollProgress = useRef(0)
+  const galleryNavRef = useRef(null)
+  const galleryNavOpacityRef = useRef(0)
+  const galleryNavVisibleRef = useRef(false)
   const [isEditor] = useRoute('/editor')
+  const [isAbout] = useRoute('/about')
+  const [isContact] = useRoute('/contact')
   const [, params] = useRoute('/item/:id')
+  const [, setLocation] = useLocation()
 
   useEffect(() => {
     const onScroll = () => {
       const max = document.documentElement.scrollHeight - window.innerHeight
-      scrollProgress.current = max <= 0 ? 1 : Math.min(1, window.scrollY / max)
+      const progress = max <= 0 ? 1 : Math.min(1, window.scrollY / max)
+      scrollProgress.current = progress
+      const fadeProgress = (progress - GALLERY_NAV_FADE_START) / GALLERY_NAV_FADE_RANGE
+      const nextOpacity = params?.id ? 0 : isAbout || isContact ? 1 : THREE.MathUtils.clamp(fadeProgress, 0, 1)
+      if (Math.abs(galleryNavOpacityRef.current - nextOpacity) > 0.01) {
+        galleryNavOpacityRef.current = nextOpacity
+        if (galleryNavRef.current) galleryNavRef.current.style.opacity = nextOpacity.toFixed(3)
+      }
+      const nextVisible = nextOpacity > 0.02
+      if (nextVisible !== galleryNavVisibleRef.current) {
+        galleryNavVisibleRef.current = nextVisible
+        if (galleryNavRef.current) galleryNavRef.current.style.pointerEvents = nextVisible ? 'auto' : 'none'
+      }
     }
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  }, [params?.id, isAbout, isContact])
 
   useEffect(() => {
     const onWheel = (e) => {
@@ -96,6 +133,26 @@ export const App = ({ images }) => {
   return (
     <LevaStoresContext.Provider value={{ meshyStore, titleTextStore, spotlightStore }}>
       <div className="app">
+      <nav ref={galleryNavRef} className={`gallery-nav${isAbout || isContact ? ' is-light' : ''}`}>
+        <div className="gallery-nav__spacer" aria-hidden />
+        <button type="button" className="gallery-nav__brand gallery-nav__action" onClick={() => setLocation('/')}>
+          Mr Nobody
+        </button>
+        <div className="gallery-nav__links">
+          <button
+            type="button"
+            className={`gallery-nav__action gallery-nav__link${isAbout ? ' is-active' : ''}`}
+            onClick={() => setLocation('/about')}>
+            About
+          </button>
+          <button
+            type="button"
+            className={`gallery-nav__action gallery-nav__link${isContact ? ' is-active' : ''}`}
+            onClick={() => setLocation('/contact')}>
+            Contact
+          </button>
+        </div>
+      </nav>
       <Leva hidden />
       {isEditor && (
         <div className="leva-panels">
@@ -149,6 +206,8 @@ export const App = ({ images }) => {
         <Environment files="https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/potsdamer_platz_1k.hdr" />
       </Canvas>
       <CaseStudyOverlay panels={images} />
+      <AboutOverlay isOpen={isAbout} onClose={() => setLocation('/')} />
+      <ContactOverlay isOpen={isContact} onClose={() => setLocation('/')} />
       </div>
     </LevaStoresContext.Provider>
   )
@@ -163,23 +222,23 @@ function CameraRig({ scrollProgress, images, q = new THREE.Quaternion(), p = new
     clicked.current = framesRef.current?.getObjectByName(params?.id)
     if (clicked.current) {
       clicked.current.parent.updateWorldMatrix(true, true)
-      clicked.current.parent.localToWorld(p.set(0, GOLDENRATIO / 2, 1.25))
+      clicked.current.parent.localToWorld(p.set(...CAMERA_PANEL_OFFSET))
       clicked.current.parent.getWorldQuaternion(q)
     }
   }, [params?.id])
 
   useFrame((state, dt) => {
     if (params?.id && clicked.current) {
-      easing.damp3(state.camera.position, p, 0.4, dt)
-      easing.dampQ(state.camera.quaternion, q, 0.4, dt)
+      easing.damp3(state.camera.position, p, CAMERA_PANEL_DAMP, dt)
+      easing.dampQ(state.camera.quaternion, q, CAMERA_PANEL_DAMP, dt)
       return
     }
 
     const t = smoothstep(scrollProgress.current)
     INTRO_TARGET.copy(CAMERA_INTRO).lerp(CAMERA_GALLERY, t)
-    easing.damp3(state.camera.position, INTRO_TARGET, 0.35, dt)
+    easing.damp3(state.camera.position, INTRO_TARGET, CAMERA_INTRO_DAMP, dt)
     q.identity()
-    easing.dampQ(state.camera.quaternion, q, 0.35, dt)
+    easing.dampQ(state.camera.quaternion, q, CAMERA_INTRO_DAMP, dt)
   })
 
   return <Frames ref={framesRef} images={images} />
@@ -221,6 +280,57 @@ function CaseStudyOverlay({ panels }) {
   )
 }
 
+function AboutOverlay({ isOpen, onClose }) {
+  return (
+    <section className={`about-page${isOpen ? ' is-open' : ''}`} aria-hidden={!isOpen}>
+      <div className="about-page__sheet">
+        <div className="about-page__content">
+          <button type="button" className="about-page__close" onClick={onClose} aria-label="Close about page">
+            ×
+          </button>
+          <h2 className="about-page__title">Mr Nobody</h2>
+          <p className="about-page__lead">
+            nobody knows because Nobody doesn&apos;t know. The &quot;brand&quot; is just a collection of tangible objects inspired
+            by anything.
+          </p>
+          <p>
+            Perhaps it draws a certain audience, maybe it doesn&apos;t draw one at all. Nobody doesn&apos;t care if nobody cares
+            because Nobody cares.
+          </p>
+          <p>
+            Nobody likes making things for Nobody. So, nobody could like it and nobody could hate it and Nobody will still make
+            it for Nobody.
+          </p>
+          <p className="about-page__closing">The brand is for Nobody and for anybody that enjoys the things Nobody does.</p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ContactOverlay({ isOpen, onClose }) {
+  return (
+    <section className={`about-page contact-page${isOpen ? ' is-open' : ''}`} aria-hidden={!isOpen}>
+      <div className="about-page__sheet">
+        <div className="about-page__content">
+          <button type="button" className="about-page__close" onClick={onClose} aria-label="Close contact page">
+            ×
+          </button>
+          <h2 className="about-page__title">Contact</h2>
+          <p className="about-page__lead">For projects, commissions, styling, and creative collaborations.</p>
+          <a className="contact-page__link" href="mailto:hello@mrnobody.studio">
+            whosmrnobody@gmail.com
+          </a>
+          <a className="contact-page__link" href="https://instagram.com/mrnobody" target="_blank" rel="noreferrer">
+            @whosmrnobody.io
+          </a>
+          <p className="about-page__closing">Based in Philadelphia. Working worldwide.</p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 const Frames = forwardRef(function Frames({ images }, ref) {
   const clicked = useRef()
   const [, params] = useRoute('/item/:id')
@@ -240,12 +350,13 @@ const Frames = forwardRef(function Frames({ images }, ref) {
   )
 })
 
-function FrameGallery({ urls, initialIndex, onIndexChange, onScrollEdge }) {
+function FrameGallery({ urls, initialIndex, onIndexChange, onScrollEdge, edgeHintRef }) {
   const scrollRef = useRef(null)
   const scrollPos = useRef(initialIndex)
   const wheeling = useRef(false)
   const wheelTimer = useRef(null)
   const edgePull = useRef(0)
+  const edgeDirection = useRef(0)
   const touchY = useRef(null)
   const touchGallery = useRef(false)
   const reportedIndex = useRef(initialIndex)
@@ -263,6 +374,7 @@ function FrameGallery({ urls, initialIndex, onIndexChange, onScrollEdge }) {
     galleryNavLock.current = true
     galleryWheelConsume.current = true
     edgePull.current = 0
+    edgeDirection.current = 0
     onScrollEdge(direction)
     setTimeout(() => {
       galleryNavLock.current = false
@@ -274,19 +386,21 @@ function FrameGallery({ urls, initialIndex, onIndexChange, onScrollEdge }) {
     const clamped = Math.max(0, Math.min(lastIndex, index))
     scrollPos.current = clamped
     edgePull.current = 0
+    edgeDirection.current = 0
     reportedIndex.current = clamped
     onIndexChange(clamped)
     const el = scrollRef.current
-    if (el?.clientHeight) el.scrollTop = clamped * el.clientHeight
+    if (el?.clientHeight) el.scrollTop = clamped * (el.clientHeight + GALLERY_SLIDE_GAP)
   }
 
   useLayoutEffect(() => {
     if (galleryNavLock.current) galleryWheelConsume.current = true
     scrollPos.current = initialIndex
     edgePull.current = 0
+    edgeDirection.current = 0
     reportedIndex.current = initialIndex
     const el = scrollRef.current
-    if (el?.clientHeight) el.scrollTop = initialIndex * el.clientHeight
+    if (el?.clientHeight) el.scrollTop = initialIndex * (el.clientHeight + GALLERY_SLIDE_GAP)
     onIndexChange(initialIndex)
   }, [initialIndex, onIndexChange])
 
@@ -324,6 +438,7 @@ function FrameGallery({ urls, initialIndex, onIndexChange, onScrollEdge }) {
         scrollPos.current = 0
         setIndex(0)
         if (delta < 0 && wasAtStart) {
+          edgeDirection.current = -1
           edgePull.current += -next * EDGE_PULL_GAIN
           if (edgePull.current >= PANEL_EDGE_OVERFLOW) {
             edgePull.current = 0
@@ -338,6 +453,7 @@ function FrameGallery({ urls, initialIndex, onIndexChange, onScrollEdge }) {
         scrollPos.current = lastIndex
         setIndex(lastIndex)
         if (delta > 0 && wasAtEnd) {
+          edgeDirection.current = 1
           edgePull.current += (next - lastIndex) * EDGE_PULL_GAIN
           if (edgePull.current >= PANEL_EDGE_OVERFLOW) {
             edgePull.current = 0
@@ -347,7 +463,10 @@ function FrameGallery({ urls, initialIndex, onIndexChange, onScrollEdge }) {
         return
       }
 
-      if (next < lastIndex - 0.12 || next > 0.12) edgePull.current = 0
+      if (next < lastIndex - 0.12 || next > 0.12) {
+        edgePull.current = 0
+        edgeDirection.current = 0
+      }
       scrollPos.current = next
       setIndex(Math.round(next))
     }
@@ -408,7 +527,12 @@ function FrameGallery({ urls, initialIndex, onIndexChange, onScrollEdge }) {
           scrollPos.current = THREE.MathUtils.damp(scrollPos.current, snap, SNAP_DAMP, dt)
         }
         setIndex(scrollPos.current)
-        el.scrollTop = scrollPos.current * el.clientHeight
+        el.scrollTop = scrollPos.current * (el.clientHeight + GALLERY_SLIDE_GAP)
+      }
+
+      if (edgeHintRef) {
+        edgeHintRef.current.progress = Math.min(1, edgePull.current / PANEL_EDGE_OVERFLOW)
+        edgeHintRef.current.direction = edgeDirection.current
       }
 
       raf = requestAnimationFrame(tick)
@@ -440,7 +564,12 @@ function FrameGallery({ urls, initialIndex, onIndexChange, onScrollEdge }) {
       occlude
       distanceFactor={HTML_DISTANCE_FACTOR}
       position={[0, 0, 0.01]}
-      style={{ width: FRAME_HTML_W, height: FRAME_HTML_H, '--frame-pad': FRAME_PAD }}>
+      style={{
+        width: FRAME_HTML_W,
+        height: FRAME_HTML_H,
+        '--frame-pad': FRAME_PAD,
+        '--gallery-slide-gap': `${GALLERY_SLIDE_GAP}px`
+      }}>
       <div className="wrapper" onPointerDown={(e) => e.stopPropagation()}>
         <div ref={scrollRef} className="frame-gallery">
           {urls.map((url) => (
@@ -454,41 +583,35 @@ function FrameGallery({ urls, initialIndex, onIndexChange, onScrollEdge }) {
   )
 }
 
-const FrameImage = forwardRef(function FrameImage({ stencil, ...props }, forwardedRef) {
+const FrameImage = forwardRef(function FrameImage({ url, scale = IMAGE_VIEW_SCALE, ...props }, forwardedRef) {
   const localRef = useRef()
   const setRef = (node) => {
     localRef.current = node
     if (typeof forwardedRef === 'function') forwardedRef(node)
     else if (forwardedRef) forwardedRef.current = node
   }
-  useLayoutEffect(() => {
-    const mat = localRef.current?.material
-    if (mat) Object.assign(mat, stencil)
-  }, [stencil])
-  return <Image ref={setRef} raycast={() => null} {...props} />
+  const meshScale = Array.isArray(scale) ? [scale[0], scale[1], scale[2] ?? 1] : scale
+  return <Image ref={setRef} raycast={() => null} url={url} scale={meshScale} {...props} />
 })
 
 function Frame({ id, title, urls, ...props }) {
   const image = useRef()
   const frame = useRef()
+  const hoverScaleTarget = useRef(new THREE.Vector3(...IMAGE_VIEW_SCALE))
   const [, params] = useRoute('/item/:id')
   const [, setLocation] = useLocation()
   const [hovered, hover] = useState(false)
   const [displayIndex, setDisplayIndex] = useState(0)
   const [galleryInitialIndex, setGalleryInitialIndex] = useState(0)
+  const edgeHint = useRef({ progress: 0, direction: 0 })
   const handleGalleryIndex = useCallback((index) => {
     setDisplayIndex(index)
   }, [])
-  const [rnd] = useState(() => Math.random())
   const maskId = Number(id)
-  const stencil = useMask(maskId)
   const isActive = params?.id === id
   const hasMultiple = urls.length > 1
-  const imageScale = [
-    IMAGE_VIEW_SCALE[0] * (!isActive && hovered ? 0.85 : 1),
-    IMAGE_VIEW_SCALE[1] * (!isActive && hovered ? 0.905 : 1),
-    1
-  ]
+  const hoverScale = !isActive && hovered ? COVER_HOVER_SCALE : 1
+  const imageScale = [IMAGE_VIEW_SCALE[0] * hoverScale, IMAGE_VIEW_SCALE[1] * hoverScale, 1]
   useCursor(hovered)
 
   const focusAdjacentPanel = useCallback(
@@ -504,6 +627,7 @@ function Frame({ id, title, urls, ...props }) {
   useEffect(() => {
     if (!isActive) {
       setDisplayIndex(0)
+      edgeHint.current = { progress: 0, direction: 0 }
       return
     }
     let initial = 0
@@ -565,16 +689,16 @@ function Frame({ id, title, urls, ...props }) {
 
   useFrame((state, dt) => {
     if (!isActive || hasMultiple) {
-      if (image.current) {
-        const zoom = 2 + Math.sin(rnd * 10000 + state.clock.elapsedTime / 3) / 2
-        if (image.current.material) {
-          Object.assign(image.current.material, stencil)
-          if (image.current.material.zoom != null) image.current.material.zoom = zoom
+      if (image.current?.material) {
+        if (image.current.material.zoom != null) {
+          image.current.material.zoom = KEN_BURNS_ENABLED
+            ? 2 + Math.sin(state.clock.elapsedTime / 3) / 2
+            : 1
         }
-        easing.damp3(image.current.scale, imageScale, 0.1, dt)
+        hoverScaleTarget.current.set(imageScale[0], imageScale[1], imageScale[2])
+        image.current.scale.lerp(hoverScaleTarget.current, 1 - Math.exp(-COVER_HOVER_SPEED * dt))
       }
     }
-    easing.dampC(frame.current.material.color, hovered ? 'orange' : 'white', 0.1, dt)
   })
 
   return (
@@ -583,13 +707,13 @@ function Frame({ id, title, urls, ...props }) {
         name={id}
         onPointerOver={(e) => (e.stopPropagation(), hover(true))}
         onPointerOut={() => hover(false)}
-        scale={[1, GOLDENRATIO, 0.05]}
+        scale={[1, 1, FRAME_DEPTH_SCALE]}
         position={[0, GOLDENRATIO / 2, 0]}>
-        <boxGeometry />
+        <boxGeometry args={[1, GOLDENRATIO, 1]} />
         <meshStandardMaterial color="#151515" metalness={0.5} roughness={0.5} envMapIntensity={2} />
         <mesh ref={frame} raycast={() => null} scale={[0.9, 0.93, 0.9]} position={[0, 0, 0.2]}>
           <boxGeometry />
-          <meshBasicMaterial toneMapped={false} fog={false} />
+          <meshBasicMaterial toneMapped={false} fog={false} transparent opacity={0} depthWrite={false} />
         </mesh>
         <Mask id={maskId} position={[0, 0, 0.68]} renderOrder={-maskId} raycast={() => null}>
           <planeGeometry args={[FRAME_INNER_W, FRAME_INNER_H]} />
@@ -600,19 +724,20 @@ function Frame({ id, title, urls, ...props }) {
               initialIndex={galleryInitialIndex}
               onIndexChange={handleGalleryIndex}
               onScrollEdge={focusAdjacentPanel}
+              edgeHintRef={edgeHint}
             />
           )}
         </Mask>
         {(!isActive || !hasMultiple) && (
-          <FrameImage ref={image} stencil={stencil} position={[0, 0, 0.68]} url={urls[0]} scale={imageScale} />
+          <FrameImage ref={image} position={[0, 0, 0.68]} url={urls[0]} scale={IMAGE_VIEW_SCALE} />
         )}
       </mesh>
-      <FrameLabel title={title} count={urls.length} index={displayIndex} />
+      <FrameLabel title={title} count={urls.length} index={displayIndex} edgeHintRef={isActive && hasMultiple ? edgeHint : null} />
     </group>
   )
 }
 
-function FrameLabel({ title, count, index }) {
+function FrameLabel({ title, count, index, edgeHintRef }) {
   const [dotsY, setDotsY] = useState(LABEL_Y - 0.034)
   const onTitleSync = (troika) => {
     const bounds = troika.textRenderInfo?.blockBounds
@@ -620,6 +745,7 @@ function FrameLabel({ title, count, index }) {
     const minY = bounds[1]
     setDotsY(LABEL_Y + minY - DOT_GAP)
   }
+  const hintY = dotsY - DOT_SIZE - EDGE_HINT_GAP
   return (
     <>
       <Text
@@ -632,7 +758,46 @@ function FrameLabel({ title, count, index }) {
         {title}
       </Text>
       <DotIndicator count={count} index={index} y={dotsY} />
+      {edgeHintRef && (
+        <group position={[LABEL_X, hintY, 0]}>
+          <PanelEdgeHint edgeHintRef={edgeHintRef} />
+        </group>
+      )}
     </>
+  )
+}
+
+function PanelEdgeHint({ edgeHintRef }) {
+  const fillRef = useRef()
+  const progress = useRef(0)
+  const opacity = useRef(0)
+  const direction = useRef(1)
+
+  useFrame((_, dt) => {
+    const fill = fillRef.current
+    if (!fill) return
+
+    const { progress: targetP, direction: targetD } = edgeHintRef.current
+    const active = targetP > 0.001 && targetD !== 0
+    const targetProgress = active ? targetP : 0
+    const targetOpacity = active ? 0.22 + targetP * 0.45 : 0
+
+    progress.current = THREE.MathUtils.damp(progress.current, targetProgress, 12, dt)
+    opacity.current = THREE.MathUtils.damp(opacity.current, targetOpacity, 12, dt)
+    if (active) direction.current = targetD
+
+    const w = progress.current * EDGE_HINT_W
+    fill.scale.x = Math.max(progress.current, 0.0001)
+    fill.material.opacity = opacity.current
+    fill.position.x = direction.current > 0 ? w / 2 : EDGE_HINT_W - w / 2
+    fill.visible = opacity.current > 0.01
+  })
+
+  return (
+    <mesh ref={fillRef} visible={false}>
+      <planeGeometry args={[EDGE_HINT_W, EDGE_HINT_H]} />
+      <meshBasicMaterial color="#ffffff" transparent opacity={0} toneMapped={false} fog={false} />
+    </mesh>
   )
 }
 
