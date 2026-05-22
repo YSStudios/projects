@@ -57,7 +57,7 @@ const CAMERA_PANEL_DAMP = 0.1
 const CAMERA_INTRO_DAMP = 0.15
 /** Local-space offset from a focused panel: [x, y, z]. Z controls stand-off distance. */
 const CAMERA_PANEL_OFFSET = [0, GOLDENRATIO / 2, 1.25]
-const CAMERA_PANEL_OFFSET_NARROW = [0, GOLDENRATIO / 2 + 0.08, 1.7]
+const CAMERA_PANEL_OFFSET_NARROW = [0, GOLDENRATIO / 2 - 0.06, 2.65]
 const TITLE_POSITION = [0, 0, 25]
 const TITLE_POSITION_NARROW = [0.2, 0, 25]
 const TITLE_SCALE_DESKTOP = 7
@@ -306,12 +306,20 @@ function CaseStudyOverlay({ panels }) {
   const panel = panels.find((p) => p.id === params?.id)
   const isOpen = Boolean(panel)
   const { caseStudy } = panel || {}
+  const closeCaseStudy = useCallback(
+    (event) => {
+      event?.preventDefault?.()
+      event?.stopPropagation?.()
+      setLocation('/', { replace: true })
+    },
+    [setLocation]
+  )
 
   return (
     <aside className={`case-study-overlay${isOpen ? ' is-open' : ''}`} aria-hidden={!isOpen}>
       {panel && (
         <div className="case-study-overlay__panel">
-          <button type="button" className="case-study-overlay__close" onClick={() => setLocation('/')} aria-label="Close case study">
+          <button type="button" className="case-study-overlay__close" onClick={closeCaseStudy} aria-label="Close case study">
             ×
           </button>
           <p className="case-study-overlay__eyebrow">Case study</p>
