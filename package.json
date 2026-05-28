@@ -12,8 +12,10 @@
     "@react-three/drei": "9.40.0",
     "@react-three/fiber": "8.9.1",
     "@react-three/postprocessing": "^2.16.0",
+    "@sanity/client": "^7.22.1",
     "@types/three": "0.144.0",
     "ajv": "^8.20.0",
+    "http-proxy-middleware": "^3.0.0",
     "leva": "^0.10.1",
     "maath": "0.4.2",
     "postprocessing": "^6.33.0",
@@ -28,7 +30,9 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "studio": "npm --prefix studio run dev",
+    "studio:build": "npm --prefix studio run build"
   },
   "browserslist": [
     ">0.2%",

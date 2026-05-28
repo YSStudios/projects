@@ -8,7 +8,6 @@ import { Leva, LevaPanel, useCreateStore } from 'leva'
 import { MrNobodyTitle } from './MrNobodyTitle'
 import { TitleSpotlight } from './TitleSpotlight'
 import { LevaStoresContext } from './levaStores'
-import { PANEL_ORDER } from './panelOrder'
 
 const GOLDENRATIO = 1.61803398875
 const FRAME_INNER_W = 0.9
@@ -84,11 +83,11 @@ function getViewportSize() {
   }
 }
 
-function adjacentPanelId(id, delta) {
-  const i = PANEL_ORDER.indexOf(id)
+function adjacentPanelId(id, delta, panelOrder) {
+  const i = panelOrder.indexOf(id)
   if (i < 0) return null
   const j = i + delta
-  return j >= 0 && j < PANEL_ORDER.length ? PANEL_ORDER[j] : null
+  return j >= 0 && j < panelOrder.length ? panelOrder[j] : null
 }
 
 /** When walking backward through the gallery, open the previous panel on its last image. */
@@ -107,7 +106,11 @@ function lerpArray(a, b, t) {
   return a.map((v, i) => THREE.MathUtils.lerp(v, b[i], t))
 }
 
-export const App = ({ images }) => {
+export const App = ({ content }) => {
+  const images = content?.panels ?? []
+  const aboutContent = content?.about
+  const contactContent = content?.contact
+  const panelOrder = useMemo(() => images.map((panel) => panel.id), [images])
   const meshyStore = useCreateStore()
   const titleTextStore = useCreateStore()
   const spotlightStore = useCreateStore()
@@ -272,6 +275,7 @@ export const App = ({ images }) => {
           <CameraRig
             scrollProgress={scrollProgress}
             images={images}
+            panelOrder={panelOrder}
             introCamera={introCamera}
             galleryCamera={galleryCamera}
             panelCameraOffset={panelCameraOffset}
@@ -295,14 +299,23 @@ export const App = ({ images }) => {
         <Environment files="https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/potsdamer_platz_1k.hdr" />
       </Canvas>
       <CaseStudyOverlay panels={images} />
-      <AboutOverlay isOpen={isAbout} onClose={() => setLocation('/')} />
-      <ContactOverlay isOpen={isContact} onClose={() => setLocation('/')} />
+      <AboutOverlay isOpen={isAbout} onClose={() => setLocation('/')} content={aboutContent} />
+      <ContactOverlay isOpen={isContact} onClose={() => setLocation('/')} content={contactContent} />
       </div>
     </LevaStoresContext.Provider>
   )
 }
 
-function CameraRig({ scrollProgress, images, introCamera, galleryCamera, panelCameraOffset, q = new THREE.Quaternion(), p = new THREE.Vector3() }) {
+function CameraRig({
+  scrollProgress,
+  images,
+  panelOrder,
+  introCamera,
+  galleryCamera,
+  panelCameraOffset,
+  q = new THREE.Quaternion(),
+  p = new THREE.Vector3()
+}) {
   const framesRef = useRef()
   const clicked = useRef()
   const [, params] = useRoute('/item/:id')
@@ -330,7 +343,7 @@ function CameraRig({ scrollProgress, images, introCamera, galleryCamera, panelCa
     easing.dampQ(state.camera.quaternion, q, CAMERA_INTRO_DAMP, dt)
   })
 
-  return <Frames ref={framesRef} images={images} />
+  return <Frames ref={framesRef} images={images} panelOrder={panelOrder} />
 }
 
 function CaseStudyOverlay({ panels }) {
@@ -377,7 +390,8 @@ function CaseStudyOverlay({ panels }) {
   )
 }
 
-function AboutOverlay({ isOpen, onClose }) {
+function AboutOverlay({ isOpen, onClose, content }) {
+  const bodyParagraphs = Array.isArray(content?.body) ? content.body : []
   return (
     <section className={`about-page${isOpen ? ' is-open' : ''}`} aria-hidden={!isOpen}>
       <div className="about-page__sheet">
@@ -385,27 +399,20 @@ function AboutOverlay({ isOpen, onClose }) {
           <button type="button" className="about-page__close" onClick={onClose} aria-label="Close about page">
             ×
           </button>
-          <h2 className="about-page__title">Mr Nobody</h2>
-          <p className="about-page__lead">
-            nobody knows because Nobody doesn&apos;t know. The &quot;brand&quot; is just a collection of tangible objects inspired
-            by anything.
-          </p>
-          <p>
-            Perhaps it draws a certain audience, maybe it doesn&apos;t draw one at all. Nobody doesn&apos;t care if nobody cares
-            because Nobody cares.
-          </p>
-          <p>
-            Nobody likes making things for Nobody. So, nobody could like it and nobody could hate it and Nobody will still make
-            it for Nobody.
-          </p>
-          <p className="about-page__closing">The brand is for Nobody and for anybody that enjoys the things Nobody does.</p>
+          <h2 className="about-page__title">{content?.title}</h2>
+          <p className="about-page__lead">{content?.lead}</p>
+          {bodyParagraphs.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+          <p className="about-page__closing">{content?.closing}</p>
         </div>
       </div>
     </section>
   )
 }
 
-function ContactOverlay({ isOpen, onClose }) {
+function ContactOverlay({ isOpen, onClose, content }) {
+  const emailHref = content?.emailAddress ? `mailto:${content.emailAddress}` : undefined
   return (
     <section className={`about-page contact-page${isOpen ? ' is-open' : ''}`} aria-hidden={!isOpen}>
       <div className="about-page__sheet">
@@ -413,22 +420,22 @@ function ContactOverlay({ isOpen, onClose }) {
           <button type="button" className="about-page__close" onClick={onClose} aria-label="Close contact page">
             ×
           </button>
-          <h2 className="about-page__title">Contact</h2>
-          <p className="about-page__lead">For projects, commissions, styling, and creative collaborations.</p>
-          <a className="contact-page__link" href="mailto:hello@mrnobody.studio">
-            whosmrnobody@gmail.com
+          <h2 className="about-page__title">{content?.title}</h2>
+          <p className="about-page__lead">{content?.lead}</p>
+          <a className="contact-page__link" href={emailHref}>
+            {content?.emailLabel}
           </a>
-          <a className="contact-page__link" href="https://instagram.com/mrnobody" target="_blank" rel="noreferrer">
-            @whosmrnobody.io
+          <a className="contact-page__link" href={content?.instagramUrl} target="_blank" rel="noreferrer">
+            {content?.instagramLabel}
           </a>
-          <p className="about-page__closing">Based in Philadelphia. Working worldwide.</p>
+          <p className="about-page__closing">{content?.closing}</p>
         </div>
       </div>
     </section>
   )
 }
 
-const Frames = forwardRef(function Frames({ images }, ref) {
+const Frames = forwardRef(function Frames({ images, panelOrder }, ref) {
   const clicked = useRef()
   const [, params] = useRoute('/item/:id')
   const [, setLocation] = useLocation()
@@ -441,7 +448,7 @@ const Frames = forwardRef(function Frames({ images }, ref) {
       onClick={(e) => (e.stopPropagation(), setLocation(clicked.current === e.object ? '/' : '/item/' + e.object.name))}
       onPointerMissed={() => setLocation('/')}>
       {images.map((props) => (
-        <Frame key={props.id} {...props} />
+        <Frame key={props.id} panelOrder={panelOrder} {...props} />
       ))}
     </group>
   )
@@ -691,7 +698,7 @@ const FrameImage = forwardRef(function FrameImage({ url, scale = IMAGE_VIEW_SCAL
   return <Image ref={setRef} raycast={() => null} url={url} scale={meshScale} {...props} />
 })
 
-function Frame({ id, title, urls, ...props }) {
+function Frame({ id, title, urls, panelOrder, ...props }) {
   const image = useRef()
   const frame = useRef()
   const hoverScaleTarget = useRef(new THREE.Vector3(...IMAGE_VIEW_SCALE))
@@ -713,12 +720,12 @@ function Frame({ id, title, urls, ...props }) {
 
   const focusAdjacentPanel = useCallback(
     (direction) => {
-      const nextId = adjacentPanelId(id, direction)
+      const nextId = adjacentPanelId(id, direction, panelOrder)
       if (!nextId) return
       if (direction < 0) panelEnterState.current = { id: nextId, atLast: true }
       setLocation('/item/' + nextId)
     },
-    [id, setLocation]
+    [id, panelOrder, setLocation]
   )
 
   useEffect(() => {
