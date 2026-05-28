@@ -2,5 +2,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "build",
   "framework": "create-react-app",
+  "redirects": [
+    { "source": "/login", "destination": "https://studio-phi-six-23.vercel.app", "permanent": false },
+    { "source": "/login/(.*)", "destination": "https://studio-phi-six-23.vercel.app/$1", "permanent": false }
+  ],
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

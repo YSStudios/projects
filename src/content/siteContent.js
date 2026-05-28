@@ -49,6 +49,7 @@ const CONTENT_QUERY = `{
 }`
 
 const fallbackPanelMap = new Map(defaultPanels.map((panel) => [panel.id, panel]))
+const fallbackPanelOrder = new Map(defaultPanels.map((panel, index) => [panel.id, index]))
 
 function asStringArray(value, fallback = []) {
   if (!Array.isArray(value)) return fallback
@@ -94,6 +95,17 @@ function mergePanels(cmsPanels) {
 
   defaultPanels.forEach((panel) => {
     if (!usedFallbackIds.has(panel.id)) merged.push(panel)
+  })
+
+  merged.sort((a, b) => {
+    const aIndex = fallbackPanelOrder.get(a.id)
+    const bIndex = fallbackPanelOrder.get(b.id)
+    const aKnown = Number.isInteger(aIndex)
+    const bKnown = Number.isInteger(bIndex)
+    if (aKnown && bKnown) return aIndex - bIndex
+    if (aKnown) return -1
+    if (bKnown) return 1
+    return `${a.id}`.localeCompare(`${b.id}`, undefined, { numeric: true })
   })
 
   return merged

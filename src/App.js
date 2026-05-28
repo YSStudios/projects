@@ -368,7 +368,6 @@ function CaseStudyOverlay({ panels }) {
           <button type="button" className="case-study-overlay__close" onClick={closeCaseStudy} aria-label="Close case study">
             ×
           </button>
-          <p className="case-study-overlay__eyebrow">Case study</p>
           <h2 className="case-study-overlay__title">{caseStudy.headline}</h2>
           <p className="case-study-overlay__meta">
             {caseStudy.year} · {caseStudy.role}

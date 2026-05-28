@@ -2,12 +2,12 @@ const { createProxyMiddleware } = require('http-proxy-middleware')
 
 module.exports = function setupProxy(app) {
   app.use(
-    '/studio',
+    '/login',
     createProxyMiddleware({
       target: 'http://127.0.0.1:3333',
       changeOrigin: true,
       ws: true,
-      pathRewrite: { '^/studio': '/' }
+      pathRewrite: { '^/login': '/' }
     })
   )
 

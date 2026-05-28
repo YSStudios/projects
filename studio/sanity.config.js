@@ -1,7 +1,7 @@
 import { defineConfig } from 'sanity'
 import { structureTool } from 'sanity/structure'
 import { visionTool } from '@sanity/vision'
-import { schemaTypes } from '../sanity/schemas'
+import { schemaTypes } from './schemas'
 import { seedDefaultsPlugin } from './seedDefaultsPlugin'
 
 const projectId = process.env.SANITY_STUDIO_PROJECT_ID || process.env.REACT_APP_SANITY_PROJECT_ID

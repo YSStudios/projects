@@ -1,0 +1,16 @@
+{
+  "name": "MrNobody",
+  "short_name": "MrNobody",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#191920",
+  "theme_color": "#191920",
+  "description": "Wearable systems, experimental garments, and case studies.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

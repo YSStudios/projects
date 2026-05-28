@@ -1,5 +1,0 @@
-export * from './Speed'
-export * from './Editor'
-export * from './Help'
-export * from './Minimap'
-export * from './Intro'
