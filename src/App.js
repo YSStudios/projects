@@ -47,6 +47,7 @@ const EDGE_PULL_GAIN = 0.45
 const PANEL_NAV_COOLDOWN_MS = 700
 const GALLERY_NAV_FADE_START = 0.5
 const GALLERY_NAV_FADE_RANGE = 0.15
+const INTRO_HINT_FADE_RANGE = 0.22
 const CAMERA_INTRO = new THREE.Vector3(0, 2, 32)
 const CAMERA_GALLERY = new THREE.Vector3(0, 0, 5.5)
 const CAMERA_INTRO_NARROW = new THREE.Vector3(0, 1.8, 44)
@@ -118,6 +119,7 @@ export const App = ({ content }) => {
   const galleryNavRef = useRef(null)
   const galleryNavOpacityRef = useRef(0)
   const galleryNavVisibleRef = useRef(false)
+  const introHintRef = useRef(null)
   const [isEditor] = useRoute('/editor')
   const [isAbout] = useRoute('/about')
   const [isContact] = useRoute('/contact')
@@ -187,6 +189,17 @@ export const App = ({ content }) => {
       const max = document.documentElement.scrollHeight - window.innerHeight
       const progress = max <= 0 ? 1 : Math.min(1, window.scrollY / max)
       scrollProgress.current = progress
+      const introFadeProgress = progress / INTRO_HINT_FADE_RANGE
+      const introOpacity = params?.id || isAbout || isContact ? 0 : 1 - THREE.MathUtils.clamp(introFadeProgress, 0, 1)
+      if (introHintRef.current) {
+        if (progress > 0.003 && introHintRef.current.dataset.scrolled !== '1') {
+          introHintRef.current.dataset.scrolled = '1'
+          introHintRef.current.style.animation = 'none'
+        }
+        introHintRef.current.style.opacity = introOpacity.toFixed(3)
+        introHintRef.current.style.transform = `translate3d(-50%, ${THREE.MathUtils.lerp(0, -14, 1 - introOpacity).toFixed(2)}px, 0)`
+        introHintRef.current.style.pointerEvents = introOpacity > 0.02 ? 'auto' : 'none'
+      }
       const fadeProgress = (progress - GALLERY_NAV_FADE_START) / GALLERY_NAV_FADE_RANGE
       const nextOpacity = params?.id ? 0 : isAbout || isContact ? 1 : THREE.MathUtils.clamp(fadeProgress, 0, 1)
       if (Math.abs(galleryNavOpacityRef.current - nextOpacity) > 0.01) {
@@ -218,6 +231,13 @@ export const App = ({ content }) => {
   return (
     <LevaStoresContext.Provider value={{ meshyStore, titleTextStore, spotlightStore }}>
       <div className={`app${params?.id ? ' is-case-study-open' : ''}`} style={appStyle}>
+      <div ref={introHintRef} className="intro-scroll-hint" aria-hidden>
+        <span className="intro-scroll-hint__icon" aria-hidden>
+          <span />
+          <span />
+        </span>
+        <span className="intro-scroll-hint__label">Scroll to enter</span>
+      </div>
       <nav ref={galleryNavRef} className={`gallery-nav${isAbout || isContact ? ' is-light' : ''}`}>
         <div className="gallery-nav__spacer" aria-hidden />
         <button type="button" className="gallery-nav__brand gallery-nav__action" onClick={() => setLocation('/')}>
@@ -722,6 +742,8 @@ function Frame({ id, title, urls, panelOrder, ...props }) {
       const nextId = adjacentPanelId(id, direction, panelOrder)
       if (!nextId) return
       if (direction < 0) panelEnterState.current = { id: nextId, atLast: true }
+      // Absorb wheel/touch momentum when entering the next panel, especially single-image panels.
+      singlePanelNavCooldownUntil.current = performance.now() + PANEL_NAV_COOLDOWN_MS
       setLocation('/item/' + nextId)
     },
     [id, panelOrder, setLocation]

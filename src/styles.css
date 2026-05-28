@@ -24,6 +24,55 @@ html {
   position: relative;
 }
 
+.intro-scroll-hint {
+  position: fixed;
+  left: 50%;
+  bottom: clamp(2.1rem, 4.5vh, 3.2rem);
+  z-index: 8;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.34rem;
+  opacity: 1;
+  color: rgba(255, 255, 255, 0.64);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transform: translate3d(-50%, 0, 0);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  animation: intro-scroll-hint-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.45s both;
+}
+
+.intro-scroll-hint__label {
+  font-size: 0.62rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.intro-scroll-hint__icon {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  animation: intro-scroll-icon-pulse 1.9s ease-in-out infinite;
+}
+
+.intro-scroll-hint__icon span {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.7);
+  transform: rotate(45deg);
+}
+
+.intro-scroll-hint__icon span:first-child {
+  opacity: 0.85;
+}
+
+.intro-scroll-hint__icon span:last-child {
+  margin-top: -0.18rem;
+  opacity: 0.45;
+}
+
 .gallery-nav {
   position: fixed;
   top: 0;
@@ -263,15 +312,50 @@ html {
   }
 }
 
+@keyframes intro-scroll-hint-in {
+  from {
+    opacity: 0;
+    transform: translate3d(-50%, 7px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes intro-scroll-icon-pulse {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .about-page__content > * {
     opacity: 1;
     transform: none;
     animation: none !important;
   }
+
+  .intro-scroll-hint,
+  .intro-scroll-hint__icon {
+    animation: none;
+  }
 }
 
 @media (max-width: 900px) {
+  .intro-scroll-hint {
+    bottom: max(1.6rem, env(safe-area-inset-bottom));
+  }
+
+  .intro-scroll-hint__label {
+    font-size: 0.58rem;
+    letter-spacing: 0.13em;
+  }
+
   .gallery-nav {
     padding: 1.15rem 1rem 0.9rem;
   }
