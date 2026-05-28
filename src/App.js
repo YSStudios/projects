@@ -76,6 +76,14 @@ const EDGE_HINT_W = 0.068
 const EDGE_HINT_H = 0.0025
 const EDGE_HINT_GAP = 0.01
 
+function getViewportSize() {
+  const vv = window.visualViewport
+  return {
+    w: Math.round(vv?.width ?? window.innerWidth),
+    h: Math.round(vv?.height ?? window.innerHeight)
+  }
+}
+
 function adjacentPanelId(id, delta) {
   const i = PANEL_ORDER.indexOf(id)
   if (i < 0) return null
@@ -110,15 +118,33 @@ export const App = ({ images }) => {
   const [isContact] = useRoute('/contact')
   const [, params] = useRoute('/item/:id')
   const [, setLocation] = useLocation()
-  const [viewportSize, setViewportSize] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }))
+  const [viewportSize, setViewportSize] = useState(() => getViewportSize())
 
   useEffect(() => {
-    const onResize = () => {
-      setViewportSize({ w: window.innerWidth, h: window.innerHeight })
+    let resizeTimer = null
+    const commitViewportSize = () => {
+      const next = getViewportSize()
+      setViewportSize((prev) => (prev.w === next.w && prev.h === next.h ? prev : next))
     }
-    onResize()
+    const onResize = () => {
+      if (resizeTimer) window.clearTimeout(resizeTimer)
+      resizeTimer = window.setTimeout(() => {
+        resizeTimer = null
+        commitViewportSize()
+      }, 80)
+    }
+    commitViewportSize()
     window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    window.visualViewport?.addEventListener('resize', onResize)
+    window.visualViewport?.addEventListener('scroll', onResize)
+    return () => {
+      if (resizeTimer) window.clearTimeout(resizeTimer)
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+      window.visualViewport?.removeEventListener('resize', onResize)
+      window.visualViewport?.removeEventListener('scroll', onResize)
+    }
   }, [])
 
   const viewportAspect = viewportSize.h > 0 ? viewportSize.w / viewportSize.h : INTRO_ASPECT_WIDE
@@ -141,6 +167,11 @@ export const App = ({ images }) => {
     [introBlend]
   )
   const titleScale = THREE.MathUtils.lerp(TITLE_SCALE_DESKTOP, TITLE_SCALE_NARROW, introBlend)
+  const viewportHeight = Math.max(1, viewportSize.h)
+  const appStyle = {
+    '--app-vh': `${viewportHeight}px`,
+    '--app-half-vh': `${viewportHeight / 2}px`
+  }
   const titlePosition = useMemo(
     () => lerpArray(TITLE_POSITION, TITLE_POSITION_NARROW, introBlend),
     [introBlend]
@@ -181,7 +212,7 @@ export const App = ({ images }) => {
 
   return (
     <LevaStoresContext.Provider value={{ meshyStore, titleTextStore, spotlightStore }}>
-      <div className={`app${params?.id ? ' is-case-study-open' : ''}`}>
+      <div className={`app${params?.id ? ' is-case-study-open' : ''}`} style={appStyle}>
       <nav ref={galleryNavRef} className={`gallery-nav${isAbout || isContact ? ' is-light' : ''}`}>
         <div className="gallery-nav__spacer" aria-hidden />
         <button type="button" className="gallery-nav__brand gallery-nav__action" onClick={() => setLocation('/')}>
@@ -225,7 +256,7 @@ export const App = ({ images }) => {
       <div className="scroll-spacer" aria-hidden />
       <Canvas
         className="scene-canvas"
-        style={{ height: isNarrowScreen && isCaseStudyOpen ? '50dvh' : '100dvh' }}
+        style={{ height: isNarrowScreen && isCaseStudyOpen ? 'var(--app-half-vh)' : 'var(--app-vh)' }}
         dpr={[1, 1.5]}
         gl={{ stencil: true }}
         camera={{ fov: 70, position: introCamera.toArray() }}>
