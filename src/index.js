@@ -22,16 +22,23 @@ const triple = (name) => {
   return [0, 1, 2].map((j) => asset(files[(i + j) % files.length]))
 }
 
-const caseStudy = (headline, summary, role = 'Fashion & technology', year = '2024', tags = ['Experimental', 'Wearable']) => ({
+const caseStudy = (
+  headline,
+  summary,
+  role = 'Fashion & technology',
+  year = '2024',
+  tags = ['Experimental', 'Wearable'],
+  body = [
+    'Exploring the intersection of garment construction, embedded systems, and interactive presentation.',
+    'This study documents material experiments, prototyping iterations, and the final installation outcome.'
+  ]
+) => ({
   headline,
   summary,
   role,
   year,
   tags,
-  body: [
-    'Exploring the intersection of garment construction, embedded systems, and interactive presentation.',
-    'This study documents material experiments, prototyping iterations, and the final installation outcome.'
-  ]
+  body
 })
 
 const panel = (id, title, primary, position, rotation, study, urlsOverride) => ({
@@ -46,86 +53,173 @@ const panel = (id, title, primary, position, rotation, study, urlsOverride) => (
 const images = [
   panel(
     '1',
-    'Mannequin Wires',
+    'Waveform Mesh Tops',
     '01-mannequin-wires.png',
     [0, 0, 2.5],
     [0, 0, 0],
-    caseStudy('Mannequin Wires', 'A wearable electronics rig mapped directly onto a dress form, treating the body as both canvas and circuit.'),
+    caseStudy(
+      'Waveform Mesh Tops',
+      'Patterned sheer high-neck tops shown across fit variations, focused on stripe alignment and drape.',
+      'Garment study',
+      '2024',
+      ['Mesh', 'Pattern placement'],
+      [
+        'This set documents the same black-and-cream motif across multiple top constructions, from clean flat lay to softer draped presentation.',
+        'The emphasis is on how the vertical columns stay visually consistent while sleeve shape, neckline finish, and fabric tension change.'
+      ]
+    ),
     [asset('01-panel1-1.png'), asset('01-panel1-3.png'), asset('01-panel1-4.png')]
   ),
   panel(
     '2',
-    'Wiring Harness',
+    'Printed Trousers Study',
     '06-wiring-harness.png',
     [-2.5, 0, 2.75],
     [0, Math.PI / 2.5, 0],
-    caseStudy('Wiring Harness', 'Industrial cable harness laid out as artifact — precision termination and bundle discipline as design language.', 'Systems', '2023', [
-      'Hardware',
-      'Process'
-    ]),
+    caseStudy(
+      'Printed Trousers Study',
+      'Printed straight-leg pants paired with a textile close-up to show motif scale and surface texture.',
+      'Print development',
+      '2024',
+      ['Textile print', 'Trousers'],
+      [
+        'The first frame presents the full trouser silhouette, while the second isolates the repeat pattern as raw material.',
+        'Together they map how the mirrored teal-black graphic translates from yardage into panel placement on the finished garment.'
+      ]
+    ),
     [asset('02-panel2-1.png'), asset('02-panel2-2.png')]
   ),
   panel(
     '3',
-    'Deconstructed Jeans',
+    'Hooded Mesh Tunic',
     '05-deconstructed-jeans.png',
     [-2.15, 0, 1.5],
     [0, Math.PI / 2.5, 0],
-    caseStudy('Deconstructed Jeans', 'Segmented denim separated at the thigh and rejoined with hardware chains and medallion connectors.'),
+    caseStudy(
+      'Hooded Mesh Tunic',
+      'Sleeveless hooded mesh top in grayscale print, shown in front, alternate fit, and neckline detail.',
+      'Construction and fit',
+      '2024',
+      ['Mesh', 'Detail focus'],
+      [
+        'The sequence moves from full silhouette to closer construction reads, highlighting armhole cut, hood volume, and center-front line.',
+        'A final detail frame focuses on seam and edge finishing so the technical build is visible beyond the graphic print.'
+      ]
+    ),
     [asset('03-panel3-1.png'), asset('03-panel3-2.png'), asset('03-panel3-3.png')]
   ),
   panel(
     '4',
-    'Denim Patchwork',
+    'Cable-Closure Jacket',
     '04-denim-patchwork.png',
     [-1.75, 0, 0.25],
     [0, Math.PI / 2.5, 0],
-    caseStudy('Denim Patchwork', 'Deconstructed denim fragments reassembled into an asymmetric wrap with raw edges and mixed washes.'),
+    caseStudy(
+      'Cable-Closure Jacket',
+      'Printed cropped jacket with engineered front closures and a mirrored back graphic.',
+      'Outerwear and hardware',
+      '2024',
+      ['Jacket', 'Closure system'],
+      [
+        'Front and back views show how placement print flows around the body, from collar through cuff and hem.',
+        'Custom cable-and-clip closures act as the central design feature, replacing a standard placket with visible hardware.'
+      ]
+    ),
     [asset('04-panel4-1.png'), asset('04-panel4-2.png')]
   ),
   panel(
     '5',
-    'Soundwave Dress',
+    'Asymmetric Printed Skirt',
     '02-soundwave-dress.png',
     [-0.8, 0, -0.6],
     [0, 0, 0],
-    caseStudy('Soundwave Dress', 'Digital print and negative-space construction shaped into a column dress with halter structure and side cutouts.'),
+    caseStudy(
+      'Asymmetric Printed Skirt',
+      'Asymmetric mini skirt cut from the same pink-violet print family, composed with overlapping front layers.',
+      'Skirt development',
+      '2024',
+      ['Skirt', 'Layered construction'],
+      [
+        'This frame captures the skirt as an independent piece, with offset wrap geometry and directional print blocking.',
+        'Focus is on hem angle, overlap depth, and how circular motifs remain readable across curved seams.'
+      ]
+    ),
     [asset('05-panel5-1.png')]
   ),
   panel(
     '6',
-    'Mesh Top',
+    'Waveform Woven Label',
     '03-mesh-top.png',
     [0.8, 0, -0.6],
     [0, 0, 0],
-    caseStudy('Mesh Top', 'Sheer mesh with engineered stripe motif — flat patterning translated into a sculptural mock-neck silhouette.'),
+    caseStudy(
+      'Waveform Woven Label',
+      'Woven magenta label featuring a black waveform mark used as a graphic identity element.',
+      'Brand detail',
+      '2024',
+      ['Label', 'Identity'],
+      [
+        'The gallery isolates a single trim component to show stitching quality, weave clarity, and color contrast.',
+        'It functions as a signature marker that ties garments and hardware pieces into one visual language.'
+      ]
+    ),
     [asset('06-panel6-1.png')]
   ),
   panel(
     '7',
-    'Patchwork Vest',
+    'Strapless Waveform Dress',
     '07-patchwork-vest.png',
     [1.75, 0, 0.25],
     [0, -Math.PI / 2.5, 0],
-    caseStudy('Patchwork Vest', 'Fur-collared vest built from reclaimed denim blocks with intentional distressing and tonal contrast.'),
+    caseStudy(
+      'Strapless Waveform Dress',
+      'Strapless bodycon dress in the black-and-cream waveform pattern, shown on a mannequin for fit read.',
+      'Dress silhouette',
+      '2024',
+      ['Dress', 'Form fit'],
+      [
+        'This look centers on vertical pattern columns and contour seams that shape the body without additional trim.',
+        'Presented on form, it emphasizes proportion, bust shaping, and uninterrupted motif flow from neckline to hem.'
+      ]
+    ),
     [asset('07-panel7-1.png')]
   ),
   panel(
     '8',
-    'Printed Jacket',
+    'Harness Assemblies',
     '08-printed-jacket.png',
     [2.15, 0, 1.5],
     [0, -Math.PI / 2.5, 0],
-    caseStudy('Printed Jacket', 'All-over celestial print with gradient hem, finished with heavy-duty spring clips instead of conventional closure.'),
+    caseStudy(
+      'Harness Assemblies',
+      'Custom wiring harness assemblies presented as standalone objects, from terminated branch sets to rack routing.',
+      'Systems fabrication',
+      '2024',
+      ['Cable work', 'Hardware'],
+      [
+        'The first frame documents hand-built multi-branch cable sets with connector terminations and color-coded leads.',
+        'The second frame expands to rack-level organization, showing bundled routing and endpoint management as finished craft.'
+      ]
+    ),
     [asset('08-panel8-1.png'), asset('08-panel8-2.png')]
   ),
   panel(
     '9',
-    'Jacket Detail',
+    'Magenta Dress System',
     '08-printed-jacket.png',
     [2.5, 0, 2.75],
     [0, -Math.PI / 2.5, 0],
-    caseStudy('Jacket Detail', 'Close study of clip hardware, print registration, and cuff color falloff on the finished garment.'),
+    caseStudy(
+      'Magenta Dress System',
+      'Magenta-and-black dress system shown as worn back view plus two flat component studies.',
+      'Garment system breakdown',
+      '2024',
+      ['Dress components', 'Construction views'],
+      [
+        'The sequence moves from mannequin fit to deconstructed pieces, revealing side hardware points and panel architecture.',
+        'By combining worn and flat views, the gallery explains how straps, rings, and body panels resolve into the final silhouette.'
+      ]
+    ),
     [asset('09-panel9-1.png'), asset('09-panel9-2.png'), asset('09-panel9-3.png')]
   )
 ]

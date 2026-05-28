@@ -96,6 +96,8 @@ const panelEnterState = { current: null }
 /** Shared across gallery instances — refs reset on remount so momentum can't carry into the next panel. */
 const galleryNavLock = { current: false }
 const galleryWheelConsume = { current: false }
+/** Prevent wheel momentum on single-image panels from skipping multiple adjacent panels. */
+const singlePanelNavCooldownUntil = { current: 0 }
 
 function smoothstep(t) {
   return t * t * (3 - 2 * t)
@@ -736,7 +738,15 @@ function Frame({ id, title, urls, ...props }) {
 
   useEffect(() => {
     if (!isActive || hasMultiple) return
-    const advance = (direction) => focusAdjacentPanel(direction)
+    const canAdvance = () => performance.now() >= singlePanelNavCooldownUntil.current
+    const markAdvanced = () => {
+      singlePanelNavCooldownUntil.current = performance.now() + PANEL_NAV_COOLDOWN_MS
+    }
+    const advance = (direction) => {
+      if (!canAdvance()) return
+      markAdvanced()
+      focusAdjacentPanel(direction)
+    }
     const onWheel = (e) => {
       if (e.target.closest?.('.case-study-overlay')) return
       e.preventDefault()
